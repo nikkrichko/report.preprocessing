@@ -25,7 +25,7 @@ clean_jmeter_log(
 This function allows you to clean jmeter jtl log file and prepare it for further analysis.
 }
 \examples{
-clean_jmeter_log(jtl_report)
+clean_jmeter_log(jdt_dirty)
 }
 \keyword{clean}
 \keyword{preprocessing}

@@ -19,10 +19,9 @@ options(scipen = 99999)
 #' @keywords preprocessing
 #' @export
 #' @examples
-#' clean_jmeter_log(jtl_report)
+#' clean_jmeter_log(jdt_dirty)
 #' @import data.table
 
-# input_dt <- jdt
 
 clean_jmeter_log <- function(input_dt,
                              delete_ending_digets=TRUE,
@@ -163,7 +162,7 @@ get_aggregate_table <- function(input_dt){
 }
 
 
-
+# TODO CHECK RPS correctnes
 
 
 
