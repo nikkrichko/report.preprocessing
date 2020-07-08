@@ -1,5 +1,5 @@
 # TODO documentation
-#' This function provide plot with response times with errors for labels.
+#' This function provide plot active threads during tests.
 #' @param input_dt input cleaned jmeter log data table
 #' @param scenario_name add string to highlight scenario name in subtitle.
 #' @param interactive convert ggplot to interactive plotly.

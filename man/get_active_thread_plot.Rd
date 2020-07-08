@@ -2,7 +2,7 @@
 % Please edit documentation in R/get_active_thread_plot.R
 \name{get_active_thread_plot}
 \alias{get_active_thread_plot}
-\title{This function provide plot with response times with errors for labels.}
+\title{This function provide plot active threads during tests.}
 \usage{
 get_active_thread_plot(input_dt, scenario_name = NULL, interactive = FALSE)
 }
@@ -14,7 +14,7 @@ get_active_thread_plot(input_dt, scenario_name = NULL, interactive = FALSE)
 \item{interactive}{convert ggplot to interactive plotly.}
 }
 \description{
-This function provide plot with response times with errors for labels.
+This function provide plot active threads during tests.
 }
 \examples{
 get_active_thread_plot(jdt)
