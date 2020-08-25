@@ -35,6 +35,7 @@ function(input_dt, scenario_name=NULL, group_by_label=TRUE, interactive=FALSE){
 
     if(group_by_label){
       result_plot <-  gp + geom_boxplot(aes(x=request_name,fill=request_name))
+
     } else {
       result_plot <-  gp + geom_boxplot(fill="#0c4c8a") +
         theme(axis.title.x = element_blank(),

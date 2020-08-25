@@ -19,10 +19,14 @@
 get_response_times_with_errors_plot <-
 function(input_dt, scenario_name=NULL, group_by_label=TRUE, interactive=FALSE){
 
-    input_dt$request_name <- as.factor(input_dt$label)
+    input_dt$request_name <- as.factor(input_dt$request_name)
     input_dt$response_code <- as.factor(input_dt$response_code)
 
     input_dt <- unique(input_dt[,.(date_time,response_time,request_name,success, response_code)])
+
+    if(!is.null(scenario_name)){
+      input_dt <- input_dt[request_name == scenario_name]
+    }
 
 
     gp <- ggplot() +

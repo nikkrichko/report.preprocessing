@@ -19,4 +19,6 @@ Depends:
     data.table,
     ggplot2,
     plotly,
-    tidyverse
+    tidyverse,
+    plyr,
+    scales

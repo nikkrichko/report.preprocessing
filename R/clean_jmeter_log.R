@@ -28,20 +28,29 @@ clean_jmeter_log <- function(input_dt,
                              delete_words_from_labels = c("new", "post","variables"),
                              labels_to_delete_list=c("init","JDBC","auth - with password","Debug", "JSR223", "config") ){
   require(data.table)
+  options(scipen = 9999)
+  # input_dt <- report.preprocessing::jdt_dirty
 
   input_dt <- as.data.table(input_dt)
+  # input_dt$timeStamp <- as.numeric(formatC(input_dt$timeStamp, format = "f", digits = 0),lenght=20)
   input_dt$timeStamp <- as.numeric(input_dt$timeStamp)
-  input_dt$dateTime <- as.POSIXct(input_dt$timeStamp/1000, origin="1970-01-01")
+  input_dt$timeStamp <- as.POSIXct(input_dt$timeStamp/1000, origin="1970-01-01")
+  input_dt$dateTime <- as.POSIXct(input_dt$timeStamp, origin="1970-01-01")
   input_dt$responseCode <- as.factor(input_dt$responseCode)
   input_dt$responseMessage <- as.factor(input_dt$responseMessage)
   input_dt$elapsed <- as.numeric(input_dt$elapsed)
   input_dt$date <- as.Date(input_dt$dateTime)
   input_dt$time <- format(input_dt$dateTime, "%H:%M:%OS3")
-  input_dt$fulltime <- as.POSIXct(input_dt$timeStamp/1000, origin="1970-01-01")
+  input_dt$fulltime <- as.POSIXct(input_dt$timeStamp, origin="1970-01-01")
   input_dt$success <- as.logical(input_dt$success)
   input_dt$Latency <- as.numeric(input_dt$Latency)
-  input_dt$response_time <- input_dt$elapsed
+  input_dt$response_time <- round(input_dt$elapsed)
+  input_dt$request_name <- as.factor(input_dt$label)
 
+  # numb <- 20172334534654667
+  # numb
+  #
+  # formatC(numb, format = "f", digits = 0)
 
   input_dt <- delete_specific_words(input_dt,delete_words_from_labels)
   # input_dt <- trim_spaces_start_end(input_dt)
@@ -57,7 +66,8 @@ clean_jmeter_log <- function(input_dt,
     input_dt <- delete_digets_in_the_end(input_dt)
   }
 
-  input_dt <- input_dt[timeStamp > 1]
+  # input_dt <- input_dt[timeStamp > 1]
+  input_dt$request_name <- as.factor(input_dt$label)
   input_dt <- janitor::clean_names(input_dt, "snake")
   input_dt
 
@@ -139,27 +149,82 @@ get_uuid <- function(){
   }
 }
 
-get_aggregate_table <- function(input_dt){
+
+#' A calculate agregated data
+#'
+#' This function get aggregated information about performance report.
+#' @param input_dt input cleaned jmeter log.
+#' @param personal_gpoup_with_load_gpoup provide aggregated table by grouping with request name and rps group Defaults to FALSE
+#' @keywords statistics
+#' @keywords aggregating
+#' @export
+#' @examples
+#' get_aggregate_table(jdt)
+#' @import data.table
+#' @import scales
+
+get_aggregate_table <- function(input_dt, personal_gpoup_with_load_gpoup=FALSE){
+  options(scipen = 99999)
   temp_dt_1 <- input_dt
-  temp_dt_1[,":="(start_time=min(date_time),end_time=max(date_time),amount=.N), by=label]
+  temp_dt_1[,":="(start_time=min(date_time),end_time=max(date_time),amount=.N), by=request_name]
   temp_dt_1[,":="(duration=round(as.numeric(end_time-start_time,units="mins")))]
   temp_dt_1[,":="(troughput_per_min=round(amount/as.numeric(duration)))]
-  temp_dt_1 <- unique(temp_dt_1[,.(label,troughput_per_min)]) %>% as.data.table()
+  temp_dt_1 <- unique(temp_dt_1[,.(request_name,troughput_per_min)]) %>% as.data.table()
 
   temp_dt_2 <- input_dt[,.("amount_of_samples"=.N,
-                           "AVG"=round(mean(response_time)),
-                           "minimum"=min(response_time),
-                           "median"=round(median(response_time)),
-                           "q90"=round(quantile(response_time,.9)),
-                           "q95"=round(quantile(response_time,.95)),
-                           "q99"=round(quantile(response_time,.99)),
-                           "maximum"=max(response_time),
-                           "error_rate"=percent(sum(success)/.N)
-  ), by=label]
+                           "AVG"=round(mean(response_time, na.rm = TRUE)),
+                           "minimum"=round(min(response_time,na.rm = TRUE)),
+                           "median"=round(median(response_time, na.rm = TRUE)),
+                           "q90"=round(quantile(response_time,.9, na.rm = TRUE)),
+                           "q95"=round(quantile(response_time,.95, na.rm = TRUE)),
+                           "q99"=round(quantile(response_time,.99, na.rm = TRUE)),
+                           "maximum"=max(response_time, na.rm = TRUE),
+                           "error_rate"=percent(-1*((sum(success)/.N)-1))
+  ), by=request_name]
+
+  if(personal_gpoup_with_load_gpoup){
+    temp_dt_2 <- input_dt[,.("amount_of_samples"=.N,
+                             "AVG"=round(mean(response_time, na.rm = TRUE)),
+                             "minimum"=round(min(response_time, na.rm = TRUE)),
+                             "median"=round(median(response_time, na.rm = TRUE)),
+                             "q90"=round(quantile(response_time,.9, na.rm = TRUE)),
+                             "q95"=round(quantile(response_time,.95, na.rm = TRUE)),
+                             "q99"=round(quantile(response_time,.99, na.rm = TRUE)),
+                             "maximum"=max(response_time, na.rm = TRUE),
+                             "error_rate"=percent(-1*((sum(success)/.N)-1))
+    ), by=.(request_name,load_rps_group)]
+    setorder(temp_dt_2, request_name,load_rps_group)
+    return(temp_dt_2)
+  }
+
 
   result_dt <- left_join(temp_dt_2,temp_dt_1) %>% as.data.table()
+  setorder(temp_dt_2, request_name)
   result_dt
 }
+# old
+# get_aggregate_table <- function(input_dt){
+#   options(scipen = 99999)
+#   temp_dt_1 <- input_dt
+#   temp_dt_1[,":="(start_time=min(date_time),end_time=max(date_time),amount=.N), by=label]
+#   temp_dt_1[,":="(duration=round(as.numeric(end_time-start_time,units="mins")))]
+#   temp_dt_1[,":="(troughput_per_min=round(amount/as.numeric(duration)))]
+#   temp_dt_1 <- unique(temp_dt_1[,.(label,troughput_per_min)]) %>% as.data.table()
+#
+#   temp_dt_2 <- input_dt[,.("amount_of_samples"=.N,
+#                            "AVG"=round(mean(response_time)),
+#                            "minimum"=round(min(response_time)),
+#                            "median"=round(median(response_time)),
+#                            "q90"=round(quantile(response_time,.9)),
+#                            "q95"=round(quantile(response_time,.95)),
+#                            "q99"=round(quantile(response_time,.99)),
+#                            "maximum"=max(response_time),
+#                            "error_rate"=percent(-1*((sum(success)/.N)-1))
+#   ), by=label]
+#
+#   result_dt <- left_join(temp_dt_2,temp_dt_1) %>% as.data.table()
+#   result_dt
+# }
 
 
 # TODO CHECK RPS correctnes
