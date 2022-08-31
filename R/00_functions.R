@@ -50,3 +50,82 @@ text_x_angle <- function(input_ggplot, input_angle=45){
 text_y_angle <- function(input_ggplot, input_angle=45){
   input_ggplot + theme(axis.text.y = element_text(angle = input_angle, vjust = 0.9, hjust=1))
 }
+
+get_hm <- function(input_time){
+  minute_value <- as.character(minute(input_time))
+  hour_value <- as.character(hour(input_time))
+  
+  minute_value <- ifelse(nchar(minute_value)<2,paste("0",minute_value, sep = ""),minute_value)
+  hour_value <- ifelse(nchar(hour_value)<2,paste("0",hour_value, sep = ""),hour_value)
+  
+  paste(hour_value,":",minute_value,sep="")
+}
+
+get_hm_hundreds <- function(input_time){
+  require(lubridate)
+  return(as.numeric(paste(hour(input_time),minute(input_time),sep="")))
+}
+
+input_time <- Sys.time()
+Sys.time() %>% get_hm_hundreds()
+Sys.time() %>% get_hm()
+
+
+rounded_quantile <- function(input_field, input_quantile){
+  result <- round(quantile(input_field, input_quantile, na.rm = TRUE) *100,2)
+  return(result)
+}
+
+rounded_max <- function(input_field){
+  result <- round(max(input_field, na.rm = TRUE) *100,2)
+  return(result)
+}
+
+rounded_min <- function(input_field){
+  result <- round(min(input_field, na.rm = TRUE) *100,2)
+  return(result)
+}
+
+render_table <- function(input_dt){
+  require(DT)
+  DT::datatable(input_dt, filter = 'top',
+                class = 'cell-border stripe',
+                extensions = "Buttons", 
+                options = list(paging = TRUE,
+                               scrollX=TRUE, 
+                               searching = TRUE,
+                               ordering = TRUE,
+                               dom = 'lBfrtip',
+                               lengthMenu = list(c(10, 20,50, -1), c('10', '20','50', 'All')),
+                               pageLength = 10,
+                               
+                               
+                               buttons = c('copy', 'csv', 'excel')
+                ))
+}
+
+makeInitials <- function(charVec) {
+  vapply(strsplit(toupper(charVec), " "), 
+         function(x) paste(substr(x, 1, 1), collapse = ""), 
+         vector("character", 1L))
+}
+
+make_abreviature <- function(input_string){
+  temp_res <- str_extract_all(input_string, '[A-Z1-9]+')
+  paste(temp_res[[1]],collapse = "")
+}
+
+
+wrapped_expandable_ggplot <- function(input_ggplot, input_title){
+  cat("\n\n")
+  cat("\n\n")
+  cat("<details><summary style='background-color: #EEEEEE;color: #333333; padding: 2px 6px 2px 6px; border-top: 1px solid #CCCCCC; border-right: 1px solid #333333; border-bottom: 1px solid #333333; border-left: 1px solid #CCCCCC;'>", input_title, "  (expand & click)</summary>")
+  cat("\n\n")
+  print(input_ggplot)
+  cat("\n\n")
+  cat("</details>")
+  cat("\n\n")
+  
+  cat("\n\n --- \n\n <input type=\"button\" onclick=\"location.href='#top';\" value=\"Back to top\" />")
+  cat("\n\n")
+}
