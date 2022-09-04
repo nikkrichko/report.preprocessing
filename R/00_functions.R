@@ -35,7 +35,7 @@ save_plot <- function(file_path_name,plot_to_save, input_width=16, input_height=
   }
 }
 
-add_percona_logo <- function(input_gg_plot, img_url){
+add_company_logo <- function(input_gg_plot, img_url){
   logo_img <- image_read(img_url) 
   input_gg_plot <- ggdraw() + 
     draw_plot(input_gg_plot,x = 0, y = 0.025, width = 1, height = .97)+
@@ -43,13 +43,16 @@ add_percona_logo <- function(input_gg_plot, img_url){
   input_gg_plot
 }
 
+
 text_x_angle <- function(input_ggplot, input_angle=45){
   input_ggplot + theme(axis.text.x = element_text(angle = input_angle, vjust = 0.9, hjust=1))
 }
 
+
 text_y_angle <- function(input_ggplot, input_angle=45){
   input_ggplot + theme(axis.text.y = element_text(angle = input_angle, vjust = 0.9, hjust=1))
 }
+
 
 get_hm <- function(input_time){
   minute_value <- as.character(minute(input_time))
@@ -61,14 +64,11 @@ get_hm <- function(input_time){
   paste(hour_value,":",minute_value,sep="")
 }
 
+
 get_hm_hundreds <- function(input_time){
   require(lubridate)
   return(as.numeric(paste(hour(input_time),minute(input_time),sep="")))
 }
-
-input_time <- Sys.time()
-Sys.time() %>% get_hm_hundreds()
-Sys.time() %>% get_hm()
 
 
 rounded_quantile <- function(input_field, input_quantile){
@@ -128,4 +128,157 @@ wrapped_expandable_ggplot <- function(input_ggplot, input_title){
   
   cat("\n\n --- \n\n <input type=\"button\" onclick=\"location.href='#top';\" value=\"Back to top\" />")
   cat("\n\n")
+}
+
+get_system_variable <- function(var_name){
+  sys_var <- Sys.getenv(var_name, unset = NA)
+  if(is.na(sys_var)){
+    if("rstudioapi" %in% rownames(installed.packages())){
+      sys_var <- rstudioapi::showPrompt(title="Input your variable", 
+                                        message=paste("Enter value for",var_name), 
+                                        default = NULL)
+      print(paste("Value for",var_name, "successfully enter with interactive window"))
+      # return(sys_var)
+    } else {
+      print(paste("ERROR : there is no system variable with named >>",var_name,"<<"))
+      print(paste("ERROR : check >>",var_name,"<< in your system variables"))
+      print(paste0("ERROR : try to export it like:", sep=""))
+      print(paste0("export ",var_name,"=%your_value%"), sep="")
+      opt <- options(show.error.messages = FALSE)
+      on.exit(options(opt))
+      stop()
+    }
+  }
+  sys_var
+}
+
+read_jmeter_logs <- function(input_file){
+  print(input_file)
+  temp_file <- read_csv(input_file) %>% as.data.table()
+  if(NROW(temp_file)>1){
+    
+    temp_file <- temp_file %>% report.preprocessing::clean_jmeter_log()
+    random_name_id <- randomNames::randomNames(1, name.sep = "_")
+    temp_file$id_test_run <- random_name_id
+      
+    return(temp_file)
+  } else {
+    return(NA)
+  }
+}
+
+
+read_jmeter_logs_from_folders <- function(input_folder){
+  lf <- paste(input_folder,
+              list.files(path=input_folder,pattern = ".jtl", recursive = TRUE),sep = "/")
+  
+  jl_list <- lapply(lf, read_jmeter_logs)
+  
+  temp_list <- list()
+  for(item_list in seq_along(jl_list)){
+    print(item_list)
+    if(is.data.frame(jl_list[item_list][[1]])){
+      temp_list[item_list] <- jl_list[item_list]
+    }
+  }
+  
+  result_dt <- rbindlist(temp_list, use.names = TRUE, fill = TRUE)
+  rm(temp_list)
+  rm(jl_list)
+  result_dt
+}
+
+get_aggregate_table <- function(input_dt, by_grp_threads=FALSE, target_column="response_time"){
+  options(scipen = 99999)
+  temp_dt_2 <- input_dt[,.("amount_of_samples"=.N,
+                           "AVG"=round(mean(get(target_column), na.rm = TRUE)),
+                           "q25"=round(quantile(get(target_column),.25, na.rm = TRUE)),
+                           "minimum"=round(min(get(target_column),na.rm = TRUE)),
+                           "median"=round(median(get(target_column), na.rm = TRUE)),
+                           "q75"=round(quantile(get(target_column),.75, na.rm = TRUE)),
+                           "q90"=round(quantile(get(target_column),.9, na.rm = TRUE)),
+                           "q95"=round(quantile(get(target_column),.95, na.rm = TRUE)),
+                           "q99"=round(quantile(get(target_column),.99, na.rm = TRUE)),
+                           "maximum"=max(get(target_column), na.rm = TRUE),
+                           "error_rate"=percent(-1*((sum(success)/.N)-1))
+  ), by=request_name]
+  
+  if(by_grp_threads){
+    temp_dt_2 <- input_dt[,.("amount_of_samples"=.N,
+                             "AVG"=round(mean(get(target_column), na.rm = TRUE)),
+                             "minimum"=round(min(get(target_column), na.rm = TRUE)),
+                             "q25"=round(quantile(get(target_column),.25, na.rm = TRUE)),
+                             "median"=round(median(get(target_column), na.rm = TRUE)),
+                             "q75"=round(quantile(get(target_column),.75, na.rm = TRUE)),
+                             "q90"=round(quantile(get(target_column),.9, na.rm = TRUE)),
+                             "q95"=round(quantile(get(target_column),.95, na.rm = TRUE)),
+                             "q99"=round(quantile(get(target_column),.99, na.rm = TRUE)),
+                             "maximum"=max(get(target_column), na.rm = TRUE),
+                             "error_rate"=percent(-1*((sum(success)/.N)-1))
+    ), by=.(request_name,grp_threads)]
+    temp_dt_2 <- add_type_to_dt(temp_dt_2)
+    setorder(temp_dt_2, request_name,grp_threads)
+    return(temp_dt_2)
+  }
+  
+  
+  result_dt <- temp_dt_2 %>% as.data.table()
+  temp_dt_2 <- add_type_to_dt(temp_dt_2)
+  setorder(temp_dt_2, request_name)
+  result_dt
+}
+
+replace_brackets <- function(input_string){
+  input_string %>% gsub("\\(|]|\\[","",.) %>% gsub(",","...",.)
+}
+
+get_all_results <- function(input_filtder_with_fst="/Users/mkrychko/jmeter_logs/clean_logs/"){
+  require(tictoc)
+  require(fst)
+  require(fs)
+  
+  path_to_read <- input_filtder_with_fst
+  fst_files <- fs::dir_ls(path_to_read)  %>% unlist()
+  fst_files <- fst_files[endsWith(fst_files,".fst")]
+  tic("read_big fst")
+  big_fst_dt <- lapply(fst_files, read.fst, as.data.table=TRUE) %>% rbindlist(.,use.names = TRUE, fill=TRUE)
+  toc()
+  big_fst_dt
+}
+
+add_type_to_dt <- function(input_dt){
+  input_dt$request_type <- "none"
+  input_dt[request_name %like% "backend"]$request_type <- "backend"
+  input_dt[request_name %like% "elk"]$request_type <- "elastic"
+  input_dt[request_name %like% "elastic"]$request_type <- "elastic"
+  input_dt[request_name %like% "web"]$request_type <- "web"
+  input_dt
+}
+
+telegram_message <- function(input_msg, with_time=TRUE){
+  require(lubridate)
+  require(httr)
+  require(tidyverse)
+  
+  TG_BOT_API_KEY <- get_system_variable("TG_BOT_API_KEY")
+  CHAT_ID_MYKYTA_DIRECT <- get_system_variable("CHAT_ID_MYKYTA_DIRECT")
+  CURRENT_COMPANY <- get_system_variable("CURRENT_COMPANY")
+  
+  if(with_time){
+    time <- format(Sys.time(), "%H:%M:%OS")
+    input_msg <- paste(time,input_msg,sep = "\n" )
+  }
+ 
+  input_msg <- paste(CURRENT_COMPANY,":",input_msg, sep = "\n" )
+  
+  input_msg <- input_msg %>% 
+    gsub(":","%3A",.) %>% 
+    gsub(" ", "%20",.) %>% 
+    gsub("\\n","%0D%0A",.)
+  
+  telegram_api_request <- paste("https://api.telegram.org/bot",TG_BOT_API_KEY,
+                      "/sendMessage?chat_id=",CHAT_ID_MYKYTA_DIRECT,
+                      "&text=", 
+                      input_msg, sep="")
+  httr::GET(telegram_api_request)
 }
