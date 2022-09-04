@@ -240,8 +240,8 @@ get_aggregate_table <- function(input_dt, by_grp_threads=FALSE, target_column="r
   result_dt
 }
 
-replace_brackets <- function(input_string){
-  input_string %>% gsub("\\(|]|\\[","",.) %>% gsub(",","...",.)
+replace_brackets <- function(input_string, replace_string="..."){
+  input_string %>% gsub("\\(|]|\\[","",.) %>% gsub(",",replace_string,.)
 }
 
 get_all_results <- function(input_filtder_with_fst="/Users/mkrychko/jmeter_logs/clean_logs/"){
@@ -293,4 +293,53 @@ telegram_message <- function(input_msg, with_time=TRUE){
                       "&text=", 
                       input_msg, sep="")
   httr::GET(telegram_api_request)
+}
+
+allowable_types <- function(value,allowable_string_types){
+  
+  if (value %in% allowable_string_types){
+    return(TRUE)
+  } else {
+    print(paste("function:", sys.calls()[1]))
+    print("function execution stoped")
+    print(paste("value: >>  ", value,"  << is not allowed to use in this function"))
+    print("allowable values:")
+    message <- paste(allowable_string_types, collapse = " , ")
+    print(message)
+    return(FALSE)
+  }
+}
+
+
+add_ts_data <- function(input_dt, input_datetime_column){
+  require(lubridate)
+  require(data.table)
+  require(tictoc)
+
+  
+  tic("adding ts info took:")
+  input_dt[,":="(create_hour=hour(get(input_datetime_column)),
+                 create_minute=minute(get(input_datetime_column)))]
+  input_dt[,create_hm:=as.numeric(paste(create_hour,ifelse(create_minute<10,paste("0",create_minute,sep=""),create_minute),sep=""))]
+  input_dt[,":="("time"=hms::round_hms(hms::as_hms(get(input_datetime_column)),1))]
+  input_dt[,":="("year"=lubridate::year(get(input_datetime_column)))]
+  input_dt[,":="("date"=lubridate::date(get(input_datetime_column)))]
+  input_dt[,":="("month"=lubridate::month(get(input_datetime_column)))]
+  input_dt[,":="("month_name"=lubridate::month(get(input_datetime_column),label = TRUE))]
+  input_dt[,":="("monthdayNum"=lubridate::mday(get(input_datetime_column)))]
+  input_dt[,":="("weekdayNum"=lubridate::wday(get(input_datetime_column)))]
+  input_dt[,":="("weekday"=lubridate::wday(get(input_datetime_column),label = TRUE))]
+  input_dt[,":="("hour"=lubridate::hour(get(input_datetime_column)))]
+  input_dt[,":="("minute"=lubridate::minute(get(input_datetime_column)))]
+  input_dt[,":="("second"= lubridate::second(get(input_datetime_column)))]
+  input_dt[,":="("mid_time"= ifelse(create_hm<1200,"AM","PM"))]
+  input_dt[,":="("mid_hour"= ifelse(hour>=12,hour-12,hour))]
+  input_dt[,":="("week_day_name"= weekdays(date))]
+  input_dt[,":="("week_day_type"= ifelse(week_day_name %in% c("Sunday","Saturday"),"WeekDay","WorkingDay"))]
+  input_dt$fteenint <- replace_brackets(cut(input_dt$minute, breaks=c(0,15,30,45,60)))
+  input_dt[,"count_by_Finterval":=.N,by=fteenint]
+  input_dt[,"count_by_Hour_Finterval":=.N,by=.(date,hour,fteenint)]
+  input_dt[,"hm":=get_hm(get(input_datetime_column))]
+  input_dt[,"hm_numeric":=get_hm_hundreds(get(input_datetime_column))]
+  input_dt
 }
