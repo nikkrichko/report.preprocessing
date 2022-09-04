@@ -22,9 +22,21 @@ compres_numbers_title <- function(number) {
 #   input_dt[Reduce(`|`, Map(`%like%`, list(get(input_column)), like_in_list))]
 # }
 
-"%like_in%" <- function(vector, pattern_list, ignore.case = TRUE, fixed = FALSE) {
+# "%like_in%" <- function(vector, pattern_list, ignore.case = TRUE, fixed = FALSE) {
+#   pattern <- paste(condition_list, collapse = "|")
+#   grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed)
+# }
+
+"%like_in%"<- function (vector, condition_list, ignore.case = FALSE, fixed = FALSE) 
+{ 
   pattern <- paste(condition_list, collapse = "|")
-  grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed)
+  if (is.factor(vector)) {
+    as.integer(vector) %in% grep(pattern, levels(vector), 
+                                 ignore.case = ignore.case, fixed = fixed)
+  }
+  else {
+    grepl(pattern, vector, ignore.case = ignore.case, fixed = fixed)
+  }
 }
 
 save_plot <- function(file_path_name,plot_to_save, input_width=16, input_height=9){
